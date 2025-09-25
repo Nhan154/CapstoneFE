@@ -36,7 +36,7 @@ export interface UserRegister {
 
 export interface AuthResponse {
   user: User;
-  token: string;
+  accessToken: string;
 }
 
 // Location Types
@@ -57,6 +57,7 @@ export interface Room {
   giuong: number;
   phongTam: number;
   moTa: string;
+  moTaVitri?: string;
   giaTien: number;
   mayGiat: boolean;
   banLa: boolean;
@@ -73,6 +74,27 @@ export interface Room {
 
 export interface RoomDetail extends Room {
   locationDetail?: Location;
+}
+
+// Rating Types
+export interface Rating {
+  id: number;
+  maPhong: number;
+  maNguoiBinhLuan: number;
+  ngayBinhLuan: string;
+  noiDung: string;
+  saoBinhLuan: number;
+}
+
+export interface RatingCreate {
+  maPhong: number;
+  noiDung: string;
+  saoBinhLuan: number;
+}
+
+export interface RatingWithUser extends Rating {
+  tenNguoiBinhLuan: string;
+  avatar: string;
 }
 
 // Booking Types

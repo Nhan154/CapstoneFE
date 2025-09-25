@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -12,14 +12,14 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Loader2, Upload } from 'lucide-react';
+import { Loader2, Upload, Camera } from 'lucide-react';
 import { toast } from 'sonner';
 
 const profileFormSchema = z.object({
-  name: z.string().min(2, { message: 'Name must be at least 2 characters' }),
-  email: z.string().min(1, { message: 'Email is required' }).email({ message: 'Must be a valid email' }),
-  phone: z.string().min(10, { message: 'Phone number must be at least 10 digits' }),
-  birthday: z.string().min(1, { message: 'Birthday is required' }),
+  name: z.string().min(2, { message: 'Tên phải có ít nhất 2 ký tự' }),
+  email: z.string().min(1, { message: 'Email là bắt buộc' }).email({ message: 'Phải là email hợp lệ' }),
+  phone: z.string().min(10, { message: 'Số điện thoại phải có ít nhất 10 số' }),
+  birthday: z.string().min(1, { message: 'Ngày sinh là bắt buộc' }),
   gender: z.enum(['true', 'false']),
 });
 
@@ -35,21 +35,22 @@ interface ApiError {
 }
 
 const UserProfile = () => {
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading, updateUser } = useAuth();
   
   const [isUpdating, setIsUpdating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [updateSuccess, setUpdateSuccess] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
-      name: user?.name || '',
-      email: user?.email || '',
-      phone: user?.phone || '',
-      birthday: user?.birthday || '',
-      gender: user?.gender ? 'true' : 'false',
+      name: '',
+      email: '',
+      phone: '',
+      birthday: '',
+      gender: 'true',
     }
   });
   
@@ -83,43 +84,69 @@ const UserProfile = () => {
       
       if (response.statusCode === 200) {
         setUpdateSuccess(true);
-        toast.success('Profile updated successfully');
+        toast.success('Hồ sơ đã được cập nhật thành công');
+        
+        // Update user in context
+        updateUser({ ...user, ...userData });
       } else {
-        setUpdateError(response.message || 'Failed to update profile');
+        setUpdateError(response.message || 'Không thể cập nhật hồ sơ');
       }
     } catch (error: unknown) {
       const apiError = error as ApiError;
-      const errorMessage = apiError?.response?.data?.message || apiError?.message || 'Failed to update profile. Please try again.';
+      const errorMessage = apiError?.response?.data?.message || apiError?.message || 'Không thể cập nhật hồ sơ. Vui lòng thử lại.';
       setUpdateError(errorMessage);
-      console.error('Error updating profile:', error);
+      console.error('Lỗi cập nhật hồ sơ:', error);
     } finally {
       setIsUpdating(false);
     }
+  };
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
   };
   
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
     
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Vui lòng chọn một tệp hình ảnh');
+      return;
+    }
+    
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Kích thước tệp không được vượt quá 5MB');
+      return;
+    }
+    
     try {
       setIsUploading(true);
+      
+      // Create FormData and append the file
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('formFile', file);
       
-      const response = await uploadAvatar(file);
+      const response = await uploadAvatar(formData);
       
-      if (response.statusCode === 200) {
-        toast.success('Avatar uploaded successfully');
-        // Refresh the page to see the new avatar
-        window.location.reload();
+      if (response && response.content) {
+        toast.success('Avatar đã được tải lên thành công');
+        
+        // Update user avatar in context
+        updateUser({ ...user, avatar: response.content });
       } else {
-        toast.error(response.message || 'Failed to upload avatar');
+        toast.error('Không thể tải lên avatar');
       }
-    } catch (error) {
-      console.error('Error uploading avatar:', error);
-      toast.error('Failed to upload avatar. Please try again.');
+    } catch (error: any) {
+      console.error('Lỗi tải lên avatar:', error);
+      toast.error(error?.response?.data?.message || 'Không thể tải lên avatar. Vui lòng thử lại.');
     } finally {
       setIsUploading(false);
+      // Clear the input
+      if (e.target) {
+        e.target.value = '';
+      }
     }
   };
   
@@ -140,70 +167,88 @@ const UserProfile = () => {
   return (
     <Layout>
       <div className="container mx-auto py-12 px-4">
-        <div className="max-w-3xl mx-auto">
-          <h1 className="text-3xl font-bold mb-8">Your Profile</h1>
+        <div className="max-w-4xl mx-auto">
+          <h1 className="text-3xl font-bold mb-8">Hồ sơ của bạn</h1>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
             <div className="col-span-1">
               <Card>
                 <CardHeader>
-                  <CardTitle>Profile Photo</CardTitle>
+                  <CardTitle>Ảnh đại diện</CardTitle>
+                  <CardDescription>
+                    Cập nhật ảnh đại diện của bạn
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col items-center">
-                  <Avatar className="h-32 w-32 mb-4">
-                    <AvatarImage src={user.avatar} alt={user.name} />
-                    <AvatarFallback className="text-3xl bg-primary/20">{getUserInitials()}</AvatarFallback>
-                  </Avatar>
-                  
-                  <div className="relative w-full">
+                  <div className="relative group mb-4">
+                    <Avatar className="h-32 w-32 cursor-pointer" onClick={handleAvatarClick}>
+                      <AvatarImage src={user.avatar} alt={user.name} />
+                      <AvatarFallback className="text-3xl bg-primary/20">{getUserInitials()}</AvatarFallback>
+                    </Avatar>
+                    
+                    {/* Overlay ôm sát avatar */}
+                    <div 
+                      className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer"
+                      onClick={handleAvatarClick}
+                    >
+                      {isUploading ? (
+                        <Loader2 className="h-8 w-8 text-white animate-spin" />
+                      ) : (
+                        <Camera className="h-8 w-8 text-white" />
+                      )}
+                    </div>
+                    
                     <input
+                      ref={fileInputRef}
                       type="file"
-                      id="avatar-upload"
-                      className="sr-only"
+                      className="hidden"
                       accept="image/*"
                       onChange={handleAvatarUpload}
                       disabled={isUploading}
                     />
-                    <label htmlFor="avatar-upload">
-                      <Button 
-                        variant="outline" 
-                        className="w-full"
-                        disabled={isUploading}
-                        asChild
-                      >
-                        <span>
-                          {isUploading ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Uploading...
-                            </>
-                          ) : (
-                            <>
-                              <Upload className="mr-2 h-4 w-4" />
-                              Change Photo
-                            </>
-                          )}
-                        </span>
-                      </Button>
-                    </label>
                   </div>
+                  
+                  <div className="w-full">
+                    <Button 
+                      variant="outline" 
+                      className="w-full"
+                      disabled={isUploading}
+                      onClick={handleAvatarClick}
+                    >
+                      {isUploading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Đang tải lên...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="mr-2 h-4 w-4" />
+                          Thay đổi ảnh
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  
+                  <p className="text-xs text-muted-foreground mt-2 text-center">
+                    JPG, PNG hoặc GIF. Tối đa 5MB.
+                  </p>
                 </CardContent>
               </Card>
             </div>
             
-            <div className="col-span-1 md:col-span-2">
+            <div className="col-span-1 lg:col-span-2">
               <Card>
                 <CardHeader>
-                  <CardTitle>Personal Information</CardTitle>
+                  <CardTitle>Thông tin cá nhân</CardTitle>
                   <CardDescription>
-                    Update your personal details
+                    Cập nhật thông tin chi tiết cá nhân của bạn
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {updateSuccess && (
                     <Alert className="mb-6 bg-green-50 text-green-800 border-green-200">
                       <AlertDescription>
-                        Your profile has been successfully updated.
+                        Hồ sơ của bạn đã được cập nhật thành công.
                       </AlertDescription>
                     </Alert>
                   )}
@@ -215,16 +260,16 @@ const UserProfile = () => {
                   )}
                   
                   <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                       <FormField
                         control={form.control}
                         name="name"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Full Name</FormLabel>
+                            <FormLabel>Họ và tên</FormLabel>
                             <FormControl>
                               <Input 
-                                placeholder="Enter your name" 
+                                placeholder="Nhập họ và tên của bạn" 
                                 disabled={isUpdating}
                                 {...field} 
                               />
@@ -249,6 +294,9 @@ const UserProfile = () => {
                               />
                             </FormControl>
                             <FormMessage />
+                            <p className="text-xs text-muted-foreground">
+                              Email không thể thay đổi
+                            </p>
                           </FormItem>
                         )}
                       />
@@ -258,10 +306,10 @@ const UserProfile = () => {
                         name="phone"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Phone Number</FormLabel>
+                            <FormLabel>Số điện thoại</FormLabel>
                             <FormControl>
                               <Input 
-                                placeholder="Phone number" 
+                                placeholder="Số điện thoại" 
                                 type="tel"
                                 disabled={isUpdating}
                                 {...field} 
@@ -277,10 +325,10 @@ const UserProfile = () => {
                         name="birthday"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Birth Date</FormLabel>
+                            <FormLabel>Ngày sinh</FormLabel>
                             <FormControl>
                               <Input 
-                                placeholder="MM/DD/YYYY" 
+                                placeholder="DD/MM/YYYY" 
                                 type="date"
                                 disabled={isUpdating}
                                 {...field} 
@@ -296,21 +344,21 @@ const UserProfile = () => {
                         name="gender"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Gender</FormLabel>
+                            <FormLabel>Giới tính</FormLabel>
                             <FormControl>
                               <RadioGroup
-                                className="flex space-x-4"
+                                className="flex space-x-6"
                                 value={field.value}
                                 onValueChange={field.onChange}
                                 disabled={isUpdating}
                               >
                                 <div className="flex items-center space-x-2">
                                   <RadioGroupItem value="true" id="male" />
-                                  <label htmlFor="male" className="text-sm cursor-pointer">Male</label>
+                                  <label htmlFor="male" className="text-sm cursor-pointer">Nam</label>
                                 </div>
                                 <div className="flex items-center space-x-2">
                                   <RadioGroupItem value="false" id="female" />
-                                  <label htmlFor="female" className="text-sm cursor-pointer">Female</label>
+                                  <label htmlFor="female" className="text-sm cursor-pointer">Nữ</label>
                                 </div>
                               </RadioGroup>
                             </FormControl>
@@ -327,10 +375,10 @@ const UserProfile = () => {
                         {isUpdating ? (
                           <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Updating...
+                            Đang cập nhật...
                           </>
                         ) : (
-                          'Save Changes'
+                          'Lưu thay đổi'
                         )}
                       </Button>
                     </form>

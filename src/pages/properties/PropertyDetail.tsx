@@ -16,6 +16,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from 'sonner';
 import GoogleMapComponent from '@/components/map/GoogleMapComponent';
+import { RoomRating } from '@/components/rating/RoomRating';
 
 interface ApiError {
   response?: {
@@ -284,7 +285,7 @@ const PropertyDetail = () => {
               </p>
               
               {/* Map Component */}
-              <div className="mt-4">
+              <div className="mt-4 mb-8">
                 <GoogleMapComponent
                   center={{ lat: 10.8231, lng: 106.6297 }} // Default to Ho Chi Minh City
                   markers={[{
@@ -294,6 +295,14 @@ const PropertyDetail = () => {
                   zoom={15}
                   height="300px"
                 />
+              </div>
+
+              <Separator className="my-6" />
+
+              {/* Rating Section */}
+              <div className="mt-8">
+                <h3 className="text-xl font-semibold mb-4">Đánh giá từ khách hàng</h3>
+                <RoomRating roomId={property.id} />
               </div>
             </div>
             
