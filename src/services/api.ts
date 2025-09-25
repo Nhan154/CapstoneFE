@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { ApiResponse, AuthResponse, Booking, BookingCreate, Location, Room, SearchParams, User, UserLogin, UserRegister } from '@/types';
+import { ApiResponse, AuthResponse, Booking, BookingCreate, Location, Rating, RatingCreate, RatingWithUser, Room, SearchParams, User, UserLogin, UserRegister } from '@/types';
 
 const API_URL = 'https://airbnbnew.cybersoft.edu.vn/api';
 const TOKEN_CYBERSOFT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5Mb3AiOiJCb290Y2FtcCA4MSIsIkhldEhhblN0cmluZyI6IjI4LzExLzIwMjUiLCJIZXRIYW5UaW1lIjoiMTc2NDI4ODAwMDAwMCIsIm5iZiI6MTczNTM0NDAwMCwiZXhwIjoxNzY0NDYwODAwfQ.Vl0ntLG6G7ajYZQonTAwyAmHVk9GLbkXalVz4BbqmLk';
@@ -86,6 +86,27 @@ export const getRoomsByLocationId = async (locationId: number): Promise<ApiRespo
   const response = await api.get<ApiResponse<Room[]>>(`/phong-thue/lay-phong-theo-vi-tri`, {
     params: { maViTri: locationId }
   });
+  return response.data;
+};
+
+// Rating APIs
+export const getRatingsByRoomId = async (roomId: number): Promise<ApiResponse<RatingWithUser[]>> => {
+  const response = await api.get<ApiResponse<RatingWithUser[]>>(`/binh-luan/lay-binh-luan-theo-phong/${roomId}`);
+  return response.data;
+};
+
+export const createRating = async (data: RatingCreate): Promise<ApiResponse<Rating>> => {
+  const response = await api.post<ApiResponse<Rating>>('/binh-luan', data);
+  return response.data;
+};
+
+export const updateRating = async (ratingId: number, data: Partial<RatingCreate>): Promise<ApiResponse<Rating>> => {
+  const response = await api.put<ApiResponse<Rating>>(`/binh-luan/${ratingId}`, data);
+  return response.data;
+};
+
+export const deleteRating = async (ratingId: number): Promise<ApiResponse<string>> => {
+  const response = await api.delete<ApiResponse<string>>(`/binh-luan/${ratingId}`);
   return response.data;
 };
 
