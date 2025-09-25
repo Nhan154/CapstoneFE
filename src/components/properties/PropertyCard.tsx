@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Room } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { StarIcon } from 'lucide-react';
+import { StarRating } from '@/components/rating/StarRating';
+import { getRatingsByRoomId } from '@/services/api';
 
 interface PropertyCardProps {
   property: Room;
@@ -12,6 +13,8 @@ interface PropertyCardProps {
 
 const PropertyCard = ({ property }: PropertyCardProps) => {
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [averageRating, setAverageRating] = useState(0);
+  const [ratingCount, setRatingCount] = useState(0);
   
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('vi-VN', { 
@@ -27,6 +30,26 @@ const PropertyCard = ({ property }: PropertyCardProps) => {
     target.src = 'https://placehold.co/800x600?text=No+Image';
     setImageLoaded(true);
   };
+
+  useEffect(() => {
+    const fetchRatings = async () => {
+      try {
+        const response = await getRatingsByRoomId(property.id);
+        const ratings = response.content || [];
+        
+        if (ratings.length > 0) {
+          const average = ratings.reduce((sum, rating) => sum + rating.saoBinhLuan, 0) / ratings.length;
+          setAverageRating(average);
+          setRatingCount(ratings.length);
+        }
+      } catch (error) {
+        // Silently handle error, use default values
+        console.log('Could not fetch ratings for room', property.id);
+      }
+    };
+
+    fetchRatings();
+  }, [property.id]);
 
   return (
     <Card className="overflow-hidden hover:shadow-md transition-shadow">
@@ -53,8 +76,15 @@ const PropertyCard = ({ property }: PropertyCardProps) => {
           <div className="flex justify-between items-start mb-2">
             <h3 className="font-semibold truncate flex-1">{property.tenPhong}</h3>
             <div className="flex items-center gap-1 text-sm">
-              <StarIcon className="h-4 w-4 fill-amber-400 text-amber-400" />
-              <span className="font-medium">4.9</span>
+              {ratingCount > 0 ? (
+                <>
+                  <StarRating rating={averageRating} size="sm" />
+                  <span className="font-medium">{averageRating.toFixed(1)}</span>
+                  <span className="text-muted-foreground">({ratingCount})</span>
+                </>
+              ) : (
+                <span className="text-muted-foreground text-xs">Chưa có đánh giá</span>
+              )}
             </div>
           </div>
           
