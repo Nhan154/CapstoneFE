@@ -2,8 +2,7 @@ import axios from 'axios';
 import { ApiResponse, AuthResponse, Booking, BookingCreate, Location, Rating, RatingCreate, RatingWithUser, Room, SearchParams, User, UserLogin, UserRegister } from '@/types';
 
 const API_URL = 'https://airbnbnew.cybersoft.edu.vn/api';
-const TOKEN_CYBERSOFT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5Mb3AiOiJCb290Y2FtcCA4MSIsIkhldEhhblN0cmluZyI6IjI4LzExLzIwMjUiLCJIZXRIYW5UaW1lIjoiMTc2NDI4ODAwMDAwMCIsIm5iZiI6MTczNTMyMjQwMCwiZXhwIjoxNzY0NDM5MjAwfQ.jkW1325aD3xF0Q0ebDfSPfvl1DU5pyAn4UGAZ30Z9L4';
-
+const TOKEN_CYBERSOFT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5Mb3AiOiJCb290Y2FtcCA4NyIsIkhldEhhblN0cmluZyI6IjI3LzAzLzIwMjYiLCJIZXRIYW5UaW1lIjoiMTc3NDU2OTYwMDAwMCIsIm5iZiI6MTc0NzI0MjAwMCwiZXhwIjoxNzc0NzE3MjAwfQ.YJSCMUqM4JgIqsDiGq9fxRp3AOrIdxBO4t7xxj6K8dY'
 const api = axios.create({
   baseURL: API_URL,
   headers: {
