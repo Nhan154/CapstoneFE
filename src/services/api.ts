@@ -12,18 +12,21 @@ const api = axios.create({
 });
 
 // Add token to requests when available
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.token = token;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
+// src/services/api.ts
+api.interceptors.request.use((config) => {
+  // Lấy token từ localStorage (kiểm tra lại tên key là 'token' hay 'accessToken')
+  const token = localStorage.getItem('token'); 
+  
+  if (token) {
+    // Lưu ý: Phải có chữ 'Bearer ' phía trước token
+    config.headers.Authorization = `Bearer ${token}`;
   }
-);
+  
+  // Header này bắt buộc cho các dự án của Cybersoft
+  config.headers['tokenByClass'] = TOKEN_CYBERSOFT; 
+  
+  return config;
+});
 
 // Auth APIs
 export const login = async (data: UserLogin): Promise<ApiResponse<AuthResponse>> => {
@@ -125,4 +128,80 @@ export const deleteBooking = async (bookingId: number): Promise<ApiResponse<stri
   return response.data;
 };
 
+
+
+// --- ADMIN APIs ---
+
+// Hàm thống kê giả lập (Nếu backend chưa có)
+export const getDashboardStats = async () => {
+  // Giả lập delay
+  await new Promise(resolve => setTimeout(resolve, 500));
+  return {
+    totalUsers: 1250,
+    totalRooms: 340,
+    totalBookings: 890,
+    revenue: 450000000 // VND
+  };
+};
+
+// --- API User Management ---
+
+// 1. Lấy danh sách user (Dùng endpoint phân trang để luôn có đủ SĐT)
+export const getUsers = async (pageIndex = 1, pageSize = 10, keyword = ''): Promise<ApiResponse<any>> => {
+  // Xây dựng URL: Nếu có keyword thì thêm vào, không thì chỉ phân trang
+  let url = `/users/phan-trang-tim-kiem?pageIndex=${pageIndex}&pageSize=${pageSize}`;
+  if (keyword) {
+    url += `&keyword=${keyword}`;
+  }
+  
+  const response = await api.get<ApiResponse<any>>(url);
+  return response.data;
+};
+
+// 2. Tạo user mới
+export const createUser = async (userData: any): Promise<ApiResponse<User>> => {
+  const response = await api.post<ApiResponse<User>>('/users', userData);
+  return response.data;
+};
+
+// 3. Cập nhật user
+export const updateUser = async (id: number, userData: any): Promise<ApiResponse<User>> => {
+  const response = await api.put<ApiResponse<User>>(`/users/${id}`, userData);
+  return response.data;
+};
+
+// 4. Xóa user
+export const deleteUser = async (id: number): Promise<ApiResponse<string>> => {
+  const response = await api.delete<ApiResponse<string>>(`/users`, {
+    params: { id }
+  });
+  return response.data;
+};
+
+// --- THÊM VÀO PHẦN Room APIs TRONG FILE api.ts ---
+
+export const deleteRoom = async (roomId: number): Promise<ApiResponse<string>> => {
+  const response = await api.delete<ApiResponse<string>>(`/phong-thue/${roomId}`);
+  return response.data;
+};
+
+// Thêm vào src/services/api.ts
+export const createRoom = async (data: any): Promise<ApiResponse<Room>> => {
+  const response = await api.post<ApiResponse<Room>>('/phong-thue', data);
+  return response.data;
+};
+
+export const updateRoom = async (id: number, data: any): Promise<ApiResponse<Room>> => {
+  const response = await api.put<ApiResponse<Room>>(`/phong-thue/${id}`, data);
+  return response.data;
+};
+
+export const uploadRoomImage = async (roomId: number, file: File): Promise<ApiResponse<any>> => {
+  const formData = new FormData();
+  formData.append('formFile', file);
+  const response = await api.post<ApiResponse<any>>(`/phong-thue/upload-hinh-phong?maPhong=${roomId}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  return response.data;
+};
 export default api;

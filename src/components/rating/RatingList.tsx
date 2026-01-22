@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import { StarRating } from './StarRating';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, MessageCircle } from 'lucide-react';
+import { Loader2, MessageCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { getRatingsByRoomId } from '@/services/api';
 import { RatingWithUser } from '@/types';
 
@@ -22,6 +23,9 @@ interface ApiError {
   message?: string;
 }
 
+const MAX_COMMENT_LENGTH = 200;
+const INITIAL_DISPLAY_COUNT = 3;
+
 export const RatingList: React.FC<RatingListProps> = ({
   roomId,
   refreshTrigger,
@@ -30,6 +34,8 @@ export const RatingList: React.FC<RatingListProps> = ({
   const [ratings, setRatings] = useState<RatingWithUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [expandedComments, setExpandedComments] = useState<Set<number>>(new Set());
+  const [showAllComments, setShowAllComments] = useState(false);
 
   const fetchRatings = async () => {
     try {
@@ -54,6 +60,40 @@ export const RatingList: React.FC<RatingListProps> = ({
   const averageRating = ratings.length > 0 
     ? ratings.reduce((sum, rating) => sum + rating.saoBinhLuan, 0) / ratings.length 
     : 0;
+
+  const toggleExpand = (ratingId: number) => {
+    setExpandedComments (prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(ratingId)) {
+        newSet.delete (ratingId);
+      } else {
+        newSet.add(ratingId);
+      } 
+      return newSet;
+    });
+  };
+
+  const toggleShowAllComments = () => {
+    setShowAllComments(prev => !prev);
+  };
+
+  const isCommentLong = (comment: string) => {
+    return comment.length > MAX_COMMENT_LENGTH;
+  };
+
+  const getTruncatedComment = (comment: string) => {
+    if (comment.length <= MAX_COMMENT_LENGTH) {
+      return comment;
+    }
+    return comment.substring(0, MAX_COMMENT_LENGTH) + '...';
+  };
+
+  // Xác định số lượng comment cần hiển thị
+  const displayedRatings = showAllComments 
+    ? ratings 
+    : ratings.slice(0, INITIAL_DISPLAY_COUNT);
+
+  const hasMoreComments = ratings.length > INITIAL_DISPLAY_COUNT;
 
   // Simple date formatting without date-fns to avoid invalid date errors
   const formatDate = (dateString: string) => {
@@ -133,8 +173,13 @@ export const RatingList: React.FC<RatingListProps> = ({
           <p className="text-sm">Hãy là người đầu tiên đánh giá!</p>
         </div>
       ) : (
+        <>
         <div className="space-y-4">
-          {ratings.map((rating) => (
+          {displayedRatings.map((rating) => {
+            const isExpanded = expandedComments.has(rating.id);
+            const shouldShowToggle = isCommentLong(rating.noiDung);
+           
+          return(
             <Card key={rating.id} className="border-l-4 border-l-blue-500">
               <CardContent className="p-4">
                 <div className="flex items-start gap-3">
@@ -163,16 +208,62 @@ export const RatingList: React.FC<RatingListProps> = ({
                       </div>
                     </div>
                     
-                    <p className="text-gray-700 text-sm leading-relaxed">
-                      {rating.noiDung}
+                    <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap">
+                      {isExpanded ? rating.noiDung : getTruncatedComment(rating.noiDung)}
                     </p>
+
+                    {shouldShowToggle && (
+                      <Button
+                        variant='ghost'
+                        size='sm'
+                        className='mt-2 p-0 h-auto font-semibold text-blue-600 hover:text-blue-800 hover:bg-transparent'
+                        onClick={() => toggleExpand(rating.id)}
+                      >
+                        {isExpanded ? (
+                          <>
+                            <span className='mr-1'>Thu gọn</span>
+                            <ChevronUp className='w-4 h-4'/>
+                          </>
+                        ) : (
+                          <>
+                            <span className='mr-1'>Xem thêm</span>
+                            <ChevronDown className='w-4 h-4'/>
+                          </>
+                        )}
+                      </Button>
+                    )}
                   </div>
                 </div>
               </CardContent>
             </Card>
-          ))}
-        </div>
-      )}
+          );
+          })}
     </div>
+
+          {hasMoreComments && (
+            <div className='mt-6 text-center'>
+              <Button
+                variant='outline'
+                size='lg'
+                className='w-full sm:w-auto min-w-[200px] font-semibold'
+                onClick={toggleShowAllComments}
+              >
+                {showAllComments ? (
+                  <>
+                  <ChevronUp className='mr-2 h-5 w-5'/>
+                  Thu gọn
+                  </>
+                ) : (
+                  <>
+                  <ChevronDown className='mr-2 h-5 w-5'/>
+                  Hiện thêm {ratings.length - INITIAL_DISPLAY_COUNT} đánh giá
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+        </>
+  )}
+  </div>
   );
 };

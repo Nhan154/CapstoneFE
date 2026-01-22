@@ -14,6 +14,11 @@ import LocationProperties from './pages/properties/LocationProperties';
 import SearchProperties from './pages/properties/SearchProperties';
 import UserProfile from './pages/user/UserProfile';
 import UserBookings from './pages/user/UserBookings';
+import HostPage from './pages/host/HostPage';
+import AdminLayout from './components/layout/AdminLayout';
+import Dashboard from './pages/admin/Dashboard';
+import UserManagement from './pages/admin/UserManagement';
+import RoomManagement from './pages/admin/RoomManagement';
 
 const queryClient = new QueryClient();
 
@@ -39,6 +44,17 @@ const App = () => (
             {/* User */}
             <Route path="/user/profile" element={<UserProfile />} />
             <Route path="/user/bookings" element={<UserBookings />} />
+
+            {/* Host */}
+            <Route path="/host" element={<HostPage />} />
+
+            {/* Admin Routes */}
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route index element={<Dashboard />} />
+              <Route path="users" element={<UserManagement />} />
+              <Route path="rooms" element={<RoomManagement/>} />
+              <Route path="locations" element={<div className="p-4">Trang quản lý vị trí (Đang phát triển)</div>} />
+            </Route>
             
             {/* Not Found */}
             <Route path="*" element={<NotFound />} />
